@@ -36,44 +36,59 @@ col4.metric("Extra Delay Bad Weather", f"+{weather_delay:.1f} min")
 # ======================
 st.subheader("📊 Visualisasi")
 
+col1, col2 = st.columns(2)
+
 # 1. Tren rata-rata waktu pengiriman
-df["order_id"] = range(1, len(df) + 1)  # dummy index
-df_trend = df.groupby(df["order_id"] // 50)["delivery_time_min"].mean()  # rata2 tiap 50 order
+with col1:
+    df["order_id"] = range(1, len(df) + 1)
+    df_trend = df.groupby(df["order_id"] // 50)["delivery_time_min"].mean()
+    fig1, ax1 = plt.subplots(figsize=(5,3))
+    ax1.plot(df_trend.index, df_trend.values, marker="o")
+    ax1.set_title("Tren Rata-rata Delivery Time")
+    ax1.set_xlabel("Batch Order (50)")
+    ax1.set_ylabel("Minutes")
+    plt.tight_layout()
+    st.pyplot(fig1)
 
-fig1, ax1 = plt.subplots(figsize=(7,3))
-ax1.plot(df_trend.index, df_trend.values, marker="o")
-ax1.set_title("Tren Rata-rata Delivery Time per Batch Order")
-ax1.set_xlabel("Batch Order (50 order)")
-ax1.set_ylabel("Avg Delivery Time (min)")
-st.pyplot(fig1)
+# 2. Peak vs Non-Peak
+with col2:
+    fig2, ax2 = plt.subplots(figsize=(5,3))
+    df.groupby("is_peak_hour")["delivery_time_min"].mean().plot(
+        kind="bar", ax=ax2, color=["skyblue","orange"])
+    ax2.set_title("Avg Delivery: Peak vs Non-Peak")
+    ax2.set_ylabel("Minutes")
+    ax2.set_xticklabels(["Non-Peak", "Peak"], rotation=0)
+    plt.tight_layout()
+    st.pyplot(fig2)
 
-# 2. Perbandingan peak vs non-peak
-fig2, ax2 = plt.subplots(figsize=(5,3))
-df.groupby("is_peak_hour")["delivery_time_min"].mean().plot(kind="bar", ax=ax2, color=["skyblue","orange"])
-ax2.set_title("Avg Delivery Time: Peak vs Non-Peak")
-ax2.set_ylabel("Minutes")
-ax2.set_xticklabels(["Non-Peak", "Peak"], rotation=0)
-st.pyplot(fig2)
+col3, col4 = st.columns(2)
 
-# 3. Perbandingan cuaca
-fig3, ax3 = plt.subplots(figsize=(5,3))
-df.groupby("is_bad_weather")["delivery_time_min"].mean().plot(kind="bar", ax=ax3, color=["green","red"])
-ax3.set_title("Avg Delivery Time: Good vs Bad Weather")
-ax3.set_ylabel("Minutes")
-ax3.set_xticklabels(["Good Weather", "Bad Weather"], rotation=0)
-st.pyplot(fig3)
+# 3. Good vs Bad Weather
+with col3:
+    fig3, ax3 = plt.subplots(figsize=(5,3))
+    df.groupby("is_bad_weather")["delivery_time_min"].mean().plot(
+        kind="bar", ax=ax3, color=["green","red"])
+    ax3.set_title("Avg Delivery: Good vs Bad Weather")
+    ax3.set_ylabel("Minutes")
+    ax3.set_xticklabels(["Good Weather", "Bad Weather"], rotation=0)
+    plt.tight_layout()
+    st.pyplot(fig3)
 
-# 4. Distribusi kendaraan
-if "vehicle_type_Car" in df.columns:
-    vehicle_counts = {
-        "Car": df["vehicle_type_Car"].sum(),
-        "Scooter": df["vehicle_type_Scooter"].sum(),
-        "Bike": df["vehicle_type_Bike"].sum() if "vehicle_type_Bike" in df.columns else 0
-    }
-    fig4, ax4 = plt.subplots(figsize=(4,4))
-    ax4.pie(vehicle_counts.values(), labels=vehicle_counts.keys(), autopct="%1.1f%%", startangle=90)
-    ax4.set_title("Distribusi Kendaraan Kurir")
-    st.pyplot(fig4)
+# 4. Distribusi Kendaraan
+with col4:
+    if "vehicle_type_Car" in df.columns:
+        vehicle_counts = {
+            "Car": df["vehicle_type_Car"].sum(),
+            "Scooter": df["vehicle_type_Scooter"].sum(),
+            "Bike": df["vehicle_type_Bike"].sum() if "vehicle_type_Bike" in df.columns else 0
+        }
+        fig4, ax4 = plt.subplots(figsize=(4,3))
+        ax4.pie(vehicle_counts.values(), labels=vehicle_counts.keys(),
+                autopct="%1.1f%%", startangle=90)
+        ax4.set_title("Distribusi Kendaraan")
+        plt.tight_layout()
+        st.pyplot(fig4)
+
 
 # ======================
 # INSIGHT & REKOMENDASI
