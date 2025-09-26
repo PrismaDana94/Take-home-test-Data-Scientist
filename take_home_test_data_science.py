@@ -14,8 +14,11 @@ def load_data(path="food_delivery_times_clean.csv"):
 
 df = load_data()
 
+# ======================
+# HEADER
+# ======================
 st.title("🚴 Food Delivery Performance Dashboard")
-st.caption("Ringkasan performa pengiriman makanan berdasarkan data historis")
+st.caption("Analisis Faktor yang Mempengaruhi Keterlambatan Pengiriman")
 
 # ======================
 # KPI CARDS
@@ -27,7 +30,12 @@ weather_delay = df[df["is_bad_weather"] == 1]["delivery_time_min"].mean() - df[d
 
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Avg Delivery Time", f"{avg_delivery:.1f} min")
-col2.metric("On-Time Rate (≤30 min)", f"{on_time_rate:.1f}%")
+
+# highlight merah kalau jauh dari benchmark
+target_on_time = 85
+delta_on_time = on_time_rate - target_on_time
+col2.metric("On-Time Rate (≤30 min)", f"{on_time_rate:.1f}%", f"{delta_on_time:.1f}%", delta_color="normal")
+
 col3.metric("Extra Delay at Peak Hour", f"+{peak_delay:.1f} min")
 col4.metric("Extra Delay Bad Weather", f"+{weather_delay:.1f} min")
 
@@ -42,11 +50,15 @@ col1, col2 = st.columns(2)
 with col1:
     df["order_id"] = range(1, len(df) + 1)
     df_trend = df.groupby(df["order_id"] // 50)["delivery_time_min"].mean()
+    overall_avg = df["delivery_time_min"].mean()
+
     fig1, ax1 = plt.subplots(figsize=(5,3))
     ax1.plot(df_trend.index, df_trend.values, marker="o")
+    ax1.axhline(overall_avg, color="red", linestyle="--", label=f"Avg {overall_avg:.1f} min")
     ax1.set_title("Tren Rata-rata Delivery Time")
     ax1.set_xlabel("Batch Order (50)")
     ax1.set_ylabel("Minutes")
+    ax1.legend()
     plt.tight_layout()
     st.pyplot(fig1)
 
@@ -74,26 +86,29 @@ with col3:
     plt.tight_layout()
     st.pyplot(fig3)
 
-
 # 4. Distribusi Kendaraan
 with col4:
     vehicle_cols = [c for c in df.columns if c.startswith("vehicle_type_")]
     if vehicle_cols:
         vehicle_counts = df[vehicle_cols].sum().to_dict()
-        # rapikan nama label (hapus prefix vehicle_type_)
         vehicle_counts = {k.replace("vehicle_type_", ""): v for k, v in vehicle_counts.items()}
-        
+
         fig4, ax4 = plt.subplots(figsize=(4,3))
         ax4.pie(vehicle_counts.values(),
                 labels=vehicle_counts.keys(),
                 autopct="%1.1f%%", 
                 startangle=90,
-                colors=["#1f77b4","#ff7f0e","#2ca02c","#d62728","#9467bd"])  # warna cadangan
+                colors=["#1f77b4","#ff7f0e","#2ca02c","#d62728","#9467bd"])
         ax4.set_title("Distribusi Kendaraan")
         plt.tight_layout()
         st.pyplot(fig4)
+
+        # insight singkat
+        dom_vehicle = max(vehicle_counts, key=vehicle_counts.get)
+        dom_pct = (vehicle_counts[dom_vehicle] / sum(vehicle_counts.values())) * 100
+        st.caption(f"ℹ {dom_vehicle} dominan ({dom_pct:.1f}%), cocok untuk area padat.")
     else:
-        st.info("Kolom jenis kendaraan tidak tersedia di dataset.")
+        st.info("Kolom jenis kendaraan tidak tersedia di dataset.")
 
 # ======================
 # INSIGHT & REKOMENDASI
@@ -101,32 +116,31 @@ with col4:
 st.subheader("🔍 Insight & Rekomendasi Bisnis")
 
 insight_text = f"""
-1. *Waktu Pengiriman Rata-rata*  
-   - Rata-rata waktu antar adalah *{avg_delivery:.1f} menit*.  
-   - {on_time_rate:.1f}% order selesai dalam 30 menit → cukup baik, tapi masih ada ruang untuk perbaikan.
+1. Waktu Pengiriman Rata-rata  
+   - Rata-rata waktu antar adalah {avg_delivery:.1f} menit.  
+   - On-time delivery hanya {on_time_rate:.1f}% (target industri >{target_on_time}%).  
+   - ⚠ Kinerja jauh di bawah benchmark, perlu prioritas perbaikan.
 
-2. *Pengaruh Jam Sibuk (Peak Hour)*  
-   - Saat jam sibuk, waktu antar bertambah rata-rata *+{peak_delay:.1f} menit*.  
-   - Ini bisa menurunkan kepuasan pelanggan.
+2. Pengaruh Jam Sibuk (Peak Hour)  
+   - Saat jam sibuk, waktu antar bertambah rata-rata +{peak_delay:.1f} menit.  
+   - Ini bisa menurunkan kepuasan pelanggan terutama di kota besar.
 
-3. *Pengaruh Cuaca Buruk*  
-   - Cuaca buruk menambah waktu antar rata-rata *+{weather_delay:.1f} menit*.  
+3. Pengaruh Cuaca Buruk  
+   - Cuaca buruk menambah waktu antar rata-rata +{weather_delay:.1f} menit.  
    - Risiko keterlambatan meningkat signifikan pada kondisi hujan/storm.
 
-4. *Jenis Kendaraan*  
-   - Distribusi kendaraan kurir menunjukkan mayoritas menggunakan *Car/Scooter*.  
-   - Pemilihan kendaraan berhubungan dengan kecepatan antar terutama di area padat lalu lintas.
+4. Jenis Kendaraan  
+   - Distribusi kendaraan menunjukkan dominasi kendaraan tertentu.  
+   - Hal ini berhubungan dengan efisiensi di area padat lalu lintas.
 """
 
 rekomendasi_text = """
-💡 *Rekomendasi Bisnis*  
-- Tambahkan insentif kurir saat *jam sibuk* untuk menjaga kecepatan antar.  
-- Sediakan *backup kurir* atau fleksibilitas rute saat *cuaca buruk*.  
-- Evaluasi efisiensi *jenis kendaraan*: motor/scooter mungkin lebih cepat di pusat kota padat.  
-- Targetkan peningkatan on-time delivery ke *90%+* untuk meningkatkan kepuasan pelanggan.  
+💡 Rekomendasi Bisnis  
+- Tambahkan insentif kurir saat jam sibuk untuk menjaga kecepatan antar.  
+- Sediakan backup kurir atau fleksibilitas rute saat cuaca buruk.  
+- Evaluasi efisiensi jenis kendaraan: motor/scooter mungkin lebih cepat di pusat kota padat.  
+- Tetapkan program peningkatan on-time delivery ke 90%+ sebagai target KPI utama.  
 """
 
 st.info(insight_text)
 st.success(rekomendasi_text)
-
-
