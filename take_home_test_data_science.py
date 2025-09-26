@@ -21,42 +21,45 @@ df = load_data()
 
 # ---------- Sidebar filters ----------
 st.sidebar.header("Filter Data")
-unique_weather = ["All"] + sorted(df['weather'].astype(str).unique().tolist())
-weather_sel = st.sidebar.selectbox("Weather", unique_weather, index=0)
 
-unique_dist_cat = ["All"] + sorted(df['distance_category'].astype(str).unique().tolist())
-dist_cat_sel = st.sidebar.selectbox("Distance category", unique_dist_cat, index=0)
+# Weather filter
+if 'weather' in df.columns:
+    unique_weather = ["All"] + sorted(df['weather'].astype(str).unique().tolist())
+    weather_sel = st.sidebar.selectbox("Weather", unique_weather, index=0)
+else:
+    weather_sel = "All"
 
-unique_time_of_day = ["All"] + sorted(df['time_of_day'].astype(str).unique().tolist())
-time_sel = st.sidebar.selectbox("Time of day", unique_time_of_day, index=0)
+# Distance category filter
+if 'distance_category' in df.columns:
+    unique_dist_cat = ["All"] + sorted(df['distance_category'].astype(str).unique().tolist())
+    dist_cat_sel = st.sidebar.selectbox("Distance category", unique_dist_cat, index=0)
+else:
+    dist_cat_sel = "All"
 
-unique_vehicle = ["All"] + sorted(df['vehicle_type'].astype(str).unique().tolist())
-vehicle_sel = st.sidebar.selectbox("Vehicle type", unique_vehicle, index=0)
+# Time of day filter
+if 'time_of_day' in df.columns:
+    unique_time_of_day = ["All"] + sorted(df['time_of_day'].astype(str).unique().tolist())
+    time_sel = st.sidebar.selectbox("Time of day", unique_time_of_day, index=0)
+else:
+    time_sel = "All"
 
-min_dist, max_dist = float(df['distance_km'].min()), float(df['distance_km'].max())
-dist_range = st.sidebar.slider(
-    "Distance (km) range",
-    min_value=0.0,
-    max_value=float(max_dist),
-    value=(min_dist, max_dist),
-    step=0.5
-)
+# Vehicle type filter
+if 'vehicle_type' in df.columns:
+    unique_vehicle = ["All"] + sorted(df['vehicle_type'].astype(str).unique().tolist())
+    vehicle_sel = st.sidebar.selectbox("Vehicle type", unique_vehicle, index=0)
+else:
+    vehicle_sel = "All"
 
-# ---------- Apply filters ----------
 df_filtered = df.copy()
-if weather_sel != "All":
+if weather_sel != "All" and 'weather' in df.columns:
     df_filtered = df_filtered[df_filtered['weather'].astype(str) == weather_sel]
-if dist_cat_sel != "All":
+if dist_cat_sel != "All" and 'distance_category' in df.columns:
     df_filtered = df_filtered[df_filtered['distance_category'].astype(str) == dist_cat_sel]
-if time_sel != "All":
+if time_sel != "All" and 'time_of_day' in df.columns:
     df_filtered = df_filtered[df_filtered['time_of_day'].astype(str) == time_sel]
-if vehicle_sel != "All":
+if vehicle_sel != "All" and 'vehicle_type' in df.columns:
     df_filtered = df_filtered[df_filtered['vehicle_type'].astype(str) == vehicle_sel]
 
-df_filtered = df_filtered[
-    (df_filtered['distance_km'] >= dist_range[0]) &
-    (df_filtered['distance_km'] <= dist_range[1])
-].copy()
 
 # ---------- KPI cards ----------
 st.subheader("Overview")
