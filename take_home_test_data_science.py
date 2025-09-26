@@ -1,145 +1,112 @@
-# =========================================
-# Food Delivery –  Dashboard
-# =========================================
+# food_delivery_dashboard.py
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
 
-# =========================================
-# Load Data
-# =========================================
-st.set_page_config(page_title="🚴 Food Delivery Dashboard", layout="wide")
+st.set_page_config(page_title="Food Delivery Dashboard", layout="wide")
 
+# ======================
+# LOAD DATA
+# ======================
 @st.cache_data
-def load_data():
-    df = pd.read_csv("food_delivery_times_clean.csv")
-    return df
+def load_data(path="food_delivery_times_clean.csv"):
+    return pd.read_csv(path)
 
 df = load_data()
 
-# =========================================
-# Judul
-# =========================================
-st.title("🚴 Food Delivery – Exploratory Dashboard")
-st.markdown("""
-Dashboard ini menampilkan analisis data pengiriman makanan berdasarkan faktor jarak, waktu persiapan,
-pengalaman kurir, kondisi cuaca, jam sibuk, dan tipe kendaraan.
-""")
+st.title("🚴 Food Delivery Performance Dashboard")
+st.caption("Ringkasan performa pengiriman makanan berdasarkan data historis")
 
-# =========================================
-# Data Preview
-# =========================================
-st.subheader("📌 Data Preview")
-st.dataframe(df.head())
+# ======================
+# KPI CARDS
+# ======================
+avg_delivery = df["delivery_time_min"].mean()
+on_time_rate = (df["delivery_time_min"] <= 30).mean() * 100
+peak_delay = df[df["is_peak_hour"] == 1]["delivery_time_min"].mean() - df[df["is_peak_hour"] == 0]["delivery_time_min"].mean()
+weather_delay = df[df["is_bad_weather"] == 1]["delivery_time_min"].mean() - df[df["is_bad_weather"] == 0]["delivery_time_min"].mean()
 
-st.markdown(f"*Jumlah baris:* {df.shape[0]} | *Jumlah kolom:* {df.shape[1]}")
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Avg Delivery Time", f"{avg_delivery:.1f} min")
+col2.metric("On-Time Rate (≤30 min)", f"{on_time_rate:.1f}%")
+col3.metric("Extra Delay at Peak Hour", f"+{peak_delay:.1f} min")
+col4.metric("Extra Delay Bad Weather", f"+{weather_delay:.1f} min")
 
-# =========================================
-# Statistik Deskriptif
-# =========================================
-st.subheader("📊 Statistik Deskriptif")
-st.write(df[['distance_km','preparation_time_min','courier_experience_yrs','delivery_time_min']].describe())
+# ======================
+# CHARTS
+# ======================
+st.subheader("📊 Visualisasi")
 
-# =========================================
-# Korelasi Heatmap
-# =========================================
-st.subheader("🔗 Korelasi Antar Fitur Numerik")
+# 1. Tren rata-rata waktu pengiriman
+df["order_id"] = range(1, len(df) + 1)  # dummy index
+df_trend = df.groupby(df["order_id"] // 50)["delivery_time_min"].mean()  # rata2 tiap 50 order
 
-num_cols = ['distance_km','preparation_time_min','courier_experience_yrs',
-            'delivery_time_min','prep_per_km','delivery_speed','effective_distance']
-
-corr = df[num_cols].corr()
-
-fig, ax = plt.subplots(figsize=(8,6))
-sns.heatmap(corr, annot=True, cmap="YlGnBu", fmt=".2f", ax=ax)
-ax.set_title("Correlation Heatmap", fontsize=14, fontweight="bold")
-st.pyplot(fig)
-
-st.markdown("""
-*Insight Korelasi:*
-- distance_km berkorelasi positif cukup kuat dengan delivery_time_min → semakin jauh jarak, makin lama waktu antar.  
-- delivery_speed berkorelasi negatif dengan delivery_time_min → semakin cepat kurir, makin singkat waktu antar.  
-- preparation_time_min juga berkontribusi signifikan terhadap total waktu antar.
-""")
-
-# =========================================
-# Boxplot – Peak Hour
-# =========================================
-st.subheader("⏰ Analisis Peak Hour vs Delivery Time")
-
-fig1, ax1 = plt.subplots(figsize=(5,4))
-sns.boxplot(x="is_peak_hour", y="delivery_time_min", data=df, palette="Set2", ax=ax1)
-ax1.set_xticklabels(["Non-Peak", "Peak"])
-ax1.set_xlabel("Peak Hour")
-ax1.set_ylabel("Delivery Time (min)")
-ax1.set_title("Delivery Time by Peak Hour")
+fig1, ax1 = plt.subplots(figsize=(7,3))
+ax1.plot(df_trend.index, df_trend.values, marker="o")
+ax1.set_title("Tren Rata-rata Delivery Time per Batch Order")
+ax1.set_xlabel("Batch Order (50 order)")
+ax1.set_ylabel("Avg Delivery Time (min)")
 st.pyplot(fig1)
 
-st.info("""
-📌 *Insight:* Waktu pengantaran saat peak hour cenderung lebih lama (median lebih tinggi).
-👉 *Rekomendasi:* Tambah jumlah kurir atau batasi order di jam sibuk untuk menekan delay.
-""")
-
-# =========================================
-# Boxplot – Cuaca
-# =========================================
-st.subheader("🌦 Analisis Cuaca vs Delivery Time")
-
-fig2, ax2 = plt.subplots(figsize=(5,4))
-sns.boxplot(x="is_bad_weather", y="delivery_time_min", data=df, palette="coolwarm", ax=ax2)
-ax2.set_xticklabels(["Good Weather","Bad Weather"])
-ax2.set_xlabel("Weather")
-ax2.set_ylabel("Delivery Time (min)")
-ax2.set_title("Delivery Time by Weather Condition")
+# 2. Perbandingan peak vs non-peak
+fig2, ax2 = plt.subplots(figsize=(5,3))
+df.groupby("is_peak_hour")["delivery_time_min"].mean().plot(kind="bar", ax=ax2, color=["skyblue","orange"])
+ax2.set_title("Avg Delivery Time: Peak vs Non-Peak")
+ax2.set_ylabel("Minutes")
+ax2.set_xticklabels(["Non-Peak", "Peak"], rotation=0)
 st.pyplot(fig2)
 
-st.info("""
-📌 *Insight:* Kondisi cuaca buruk meningkatkan variasi dan median waktu antar.  
-👉 *Rekomendasi:* Berikan estimasi waktu lebih panjang ke pelanggan saat cuaca buruk, 
-atau insentif ekstra ke kurir agar lebih termotivasi.
-""")
-
-# =========================================
-# Boxplot – Vehicle Type
-# =========================================
-st.subheader("🚗 Analisis Tipe Kendaraan vs Delivery Time")
-
-if "vehicle_type_Car" in df.columns:
-    df['vehicle_type'] = df[['vehicle_type_Car','vehicle_type_Scooter']].idxmax(axis=1)
-    df['vehicle_type'] = df['vehicle_type'].str.replace("vehicle_type_", "")
-else:
-    df['vehicle_type'] = "Unknown"
-
-fig3, ax3 = plt.subplots(figsize=(5,4))
-sns.boxplot(x="vehicle_type", y="delivery_time_min", data=df, palette="pastel", ax=ax3)
-ax3.set_xlabel("Vehicle Type")
-ax3.set_ylabel("Delivery Time (min)")
-ax3.set_title("Delivery Time by Vehicle Type")
+# 3. Perbandingan cuaca
+fig3, ax3 = plt.subplots(figsize=(5,3))
+df.groupby("is_bad_weather")["delivery_time_min"].mean().plot(kind="bar", ax=ax3, color=["green","red"])
+ax3.set_title("Avg Delivery Time: Good vs Bad Weather")
+ax3.set_ylabel("Minutes")
+ax3.set_xticklabels(["Good Weather", "Bad Weather"], rotation=0)
 st.pyplot(fig3)
 
-st.info("""
-📌 *Insight:* Scooter umumnya lebih cepat daripada mobil untuk jarak dekat.  
-*Rekomendasi:* Gunakan scooter di area padat lalu lintas, dan mobil untuk order besar/jarak jauh.
-""")
+# 4. Distribusi kendaraan
+if "vehicle_type_Car" in df.columns:
+    vehicle_counts = {
+        "Car": df["vehicle_type_Car"].sum(),
+        "Scooter": df["vehicle_type_Scooter"].sum(),
+        "Bike": df["vehicle_type_Bike"].sum() if "vehicle_type_Bike" in df.columns else 0
+    }
+    fig4, ax4 = plt.subplots(figsize=(4,4))
+    ax4.pie(vehicle_counts.values(), labels=vehicle_counts.keys(), autopct="%1.1f%%", startangle=90)
+    ax4.set_title("Distribusi Kendaraan Kurir")
+    st.pyplot(fig4)
 
-# =========================================
-# Kesimpulan
-# =========================================
-st.subheader("📌 Insights & Rekomendasi Akhir")
-st.success("""
-1. *Jarak & Kecepatan* → Faktor utama memengaruhi waktu pengiriman.  
-    Atur alokasi kurir berdasarkan jarak order untuk optimasi waktu.  
+# ======================
+# INSIGHT & REKOMENDASI
+# ======================
+st.subheader("🔍 Insight & Rekomendasi Bisnis")
 
-2. *Jam Sibuk (Peak Hour)* → Membuat delivery lebih lama.  
-    Tambah kapasitas kurir atau berikan estimasi lebih panjang saat peak hour.  
+insight_text = f"""
+1. *Waktu Pengiriman Rata-rata*  
+   - Rata-rata waktu antar adalah *{avg_delivery:.1f} menit*.  
+   - {on_time_rate:.1f}% order selesai dalam 30 menit → cukup baik, tapi masih ada ruang untuk perbaikan.
 
-3. *Cuaca Buruk* → Menambah keterlambatan signifikan.  
-    Terapkan dynamic ETA (perkiraan waktu) & insentif ke kurir.  
+2. *Pengaruh Jam Sibuk (Peak Hour)*  
+   - Saat jam sibuk, waktu antar bertambah rata-rata *+{peak_delay:.1f} menit*.  
+   - Ini bisa menurunkan kepuasan pelanggan.
 
-4. *Tipe Kendaraan* → Scooter lebih efisien di area perkotaan.  
-    Optimalkan kombinasi scooter & mobil sesuai area dan jarak.
-""")
+3. *Pengaruh Cuaca Buruk*  
+   - Cuaca buruk menambah waktu antar rata-rata *+{weather_delay:.1f} menit*.  
+   - Risiko keterlambatan meningkat signifikan pada kondisi hujan/storm.
 
+4. *Jenis Kendaraan*  
+   - Distribusi kendaraan kurir menunjukkan mayoritas menggunakan *Car/Scooter*.  
+   - Pemilihan kendaraan berhubungan dengan kecepatan antar terutama di area padat lalu lintas.
+"""
+
+rekomendasi_text = """
+💡 *Rekomendasi Bisnis*  
+- Tambahkan insentif kurir saat *jam sibuk* untuk menjaga kecepatan antar.  
+- Sediakan *backup kurir* atau fleksibilitas rute saat *cuaca buruk*.  
+- Evaluasi efisiensi *jenis kendaraan*: motor/scooter mungkin lebih cepat di pusat kota padat.  
+- Targetkan peningkatan on-time delivery ke *90%+* untuk meningkatkan kepuasan pelanggan.  
+"""
+
+st.info(insight_text)
+st.success(rekomendasi_text)
 
 
