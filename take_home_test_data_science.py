@@ -74,21 +74,26 @@ with col3:
     plt.tight_layout()
     st.pyplot(fig3)
 
+
 # 4. Distribusi Kendaraan
 with col4:
-    if "vehicle_type_Car" in df.columns:
-        vehicle_counts = {
-            "Car": df["vehicle_type_Car"].sum(),
-            "Scooter": df["vehicle_type_Scooter"].sum(),
-            "Bike": df["vehicle_type_Bike"].sum() if "vehicle_type_Bike" in df.columns else 0
-        }
+    vehicle_cols = [c for c in df.columns if c.startswith("vehicle_type_")]
+    if vehicle_cols:
+        vehicle_counts = df[vehicle_cols].sum().to_dict()
+        # rapikan nama label (hapus prefix vehicle_type_)
+        vehicle_counts = {k.replace("vehicle_type_", ""): v for k, v in vehicle_counts.items()}
+        
         fig4, ax4 = plt.subplots(figsize=(4,3))
-        ax4.pie(vehicle_counts.values(), labels=vehicle_counts.keys(),
-                autopct="%1.1f%%", startangle=90)
+        ax4.pie(vehicle_counts.values(),
+                labels=vehicle_counts.keys(),
+                autopct="%1.1f%%", 
+                startangle=90,
+                colors=["#1f77b4","#ff7f0e","#2ca02c","#d62728","#9467bd"])  # warna cadangan
         ax4.set_title("Distribusi Kendaraan")
         plt.tight_layout()
-        st.pyplot(fig4)
-
+        st.pyplot(fig4)
+    else:
+        st.info("Kolom jenis kendaraan tidak tersedia di dataset.")
 
 # ======================
 # INSIGHT & REKOMENDASI
